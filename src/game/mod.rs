@@ -2,7 +2,7 @@ use rand::prelude::*;
 
 pub mod geometry;
 
-use geometry::Position;
+use geometry::{Direction, Position};
 
 pub struct Game {
     player_pos: Position,
@@ -20,7 +20,7 @@ pub enum Tile {
     Floor,
 }
 
-#[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone)]
 pub enum TileView {
     Visible {
         actor: Option<EntityType>,
@@ -32,6 +32,12 @@ pub enum TileView {
         tile: Tile,
     },
     Unknown,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Action {
+    Wait,
+    Move(Direction),
 }
 
 impl Game {
@@ -60,5 +66,15 @@ impl Game {
 
     pub fn player_position(&self) -> Position {
         self.player_pos
+    }
+
+    // TODO: return Result?
+    pub fn step(&mut self, action: Action) {
+        match action {
+            Action::Wait => {}
+            Action::Move(dir) => {
+                self.player_pos = self.player_pos.step(dir);
+            }
+        };
     }
 }
