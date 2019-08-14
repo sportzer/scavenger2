@@ -1,6 +1,7 @@
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
 
+pub use cursive;
 use cursive::{
     Cursive,
     Printer,
@@ -75,7 +76,11 @@ impl View for GameMap {
                     TileView::Unknown => (" ", Color::Dark(BaseColor::Black)),
                     _ => ("?", Color::Dark(BaseColor::Magenta)),  // TODO
                 };
-                let color_style = ColorStyle::new(color, Color::Dark(BaseColor::Black));
+                let color_style = if ch == "#" {
+                    ColorStyle::new(Color::Dark(BaseColor::Black), color)
+                } else {
+                    ColorStyle::new(color, Color::Dark(BaseColor::Black))
+                };
                 pr.with_color(color_style, |pr| {
                     pr.print(Vec2::new(x, y), ch);
                 });
