@@ -56,6 +56,8 @@ impl View for GameMap {
     fn draw(&self, pr: &Printer) {
         let game = self.game.borrow();
 
+        // TODO: recenter camera if off screen
+        // TODO: manage screen resize
         let camera = self.camera.get().unwrap_or_else(|| {
             Camera::centered(pr.size, game.player_position())
         });
@@ -66,7 +68,12 @@ impl View for GameMap {
                 let v = game.view(pos);
                 let (ch, color) = match v {
                     TileView::Visible { actor: Some(_), .. } => ("@", Color::Light(BaseColor::White)),
-                    _ => (".", Color::Dark(BaseColor::Green)),
+                    TileView::Visible { tile: Tile::Wall, .. } => ("#", Color::Dark(BaseColor::Yellow)),
+                    TileView::Visible { tile: Tile::Floor, .. } => (".", Color::Dark(BaseColor::Green)),
+                    TileView::Remembered { tile: Tile::Wall, .. } => ("#", Color::Light(BaseColor::Black)),
+                    TileView::Remembered { tile: Tile::Floor, .. } => (".", Color::Light(BaseColor::Black)),
+                    TileView::Unknown => (" ", Color::Dark(BaseColor::Black)),
+                    _ => ("?", Color::Dark(BaseColor::Magenta)),  // TODO
                 };
                 let color_style = ColorStyle::new(color, Color::Dark(BaseColor::Black));
                 pr.with_color(color_style, |pr| {
@@ -84,11 +91,31 @@ impl View for GameMap {
                 game.step(action);
             })
         };
+        // TODO: more key bindings
         match ev {
+            // arrow keys
             Event::Key(Key::Up) => action_cb(Action::Move(Direction::North)),
             Event::Key(Key::Down) => action_cb(Action::Move(Direction::South)),
             Event::Key(Key::Left) => action_cb(Action::Move(Direction::West)),
             Event::Key(Key::Right) => action_cb(Action::Move(Direction::East)),
+            // number keys
+            Event::Char('1') => action_cb(Action::Move(Direction::SouthWest)),
+            Event::Char('2') => action_cb(Action::Move(Direction::South)),
+            Event::Char('3') => action_cb(Action::Move(Direction::SouthEast)),
+            Event::Char('4') => action_cb(Action::Move(Direction::West)),
+            Event::Char('6') => action_cb(Action::Move(Direction::East)),
+            Event::Char('7') => action_cb(Action::Move(Direction::NorthWest)),
+            Event::Char('8') => action_cb(Action::Move(Direction::North)),
+            Event::Char('9') => action_cb(Action::Move(Direction::NorthEast)),
+            // vi keys
+            Event::Char('h') => action_cb(Action::Move(Direction::West)),
+            Event::Char('j') => action_cb(Action::Move(Direction::South)),
+            Event::Char('k') => action_cb(Action::Move(Direction::North)),
+            Event::Char('l') => action_cb(Action::Move(Direction::East)),
+            Event::Char('y') => action_cb(Action::Move(Direction::NorthWest)),
+            Event::Char('u') => action_cb(Action::Move(Direction::NorthEast)),
+            Event::Char('b') => action_cb(Action::Move(Direction::SouthWest)),
+            Event::Char('n') => action_cb(Action::Move(Direction::SouthEast)),
             _ => EventResult::Ignored,
         }
     }
