@@ -70,9 +70,9 @@ impl View for GameMap {
                 let (ch, color) = match v {
                     TileView::Visible { actor: Some(_), .. } => ("@", Color::Light(BaseColor::White)),
                     TileView::Visible { tile: Tile::Wall, .. } => ("#", Color::Dark(BaseColor::Yellow)),
-                    TileView::Visible { tile: Tile::Floor, .. } => (".", Color::Dark(BaseColor::Green)),
+                    TileView::Visible { tile: Tile::Ground, .. } => (".", Color::Dark(BaseColor::Green)),
                     TileView::Remembered { tile: Tile::Wall, .. } => ("#", Color::Light(BaseColor::Black)),
-                    TileView::Remembered { tile: Tile::Floor, .. } => (".", Color::Light(BaseColor::Black)),
+                    TileView::Remembered { tile: Tile::Ground, .. } => (".", Color::Light(BaseColor::Black)),
                     TileView::Unknown => (" ", Color::Dark(BaseColor::Black)),
                     _ => ("?", Color::Dark(BaseColor::Magenta)),  // TODO
                 };

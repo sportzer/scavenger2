@@ -15,7 +15,7 @@ pub enum EntityType {
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum Tile {
     Wall,
-    Floor,
+    Ground,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -58,7 +58,7 @@ impl Game {
             for y in -20..=20 {
                 let sq = (x*x + y*y) as u32;
                 if sq <= 25 || sq < 20*20 && !g.rng.gen_ratio(sq, 20*20) {
-                    g.tiles.insert(Position { x, y }, Tile::Floor);
+                    g.tiles.insert(Position { x, y }, Tile::Ground);
                 }
             }
         }

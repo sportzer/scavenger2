@@ -44,7 +44,7 @@ pub fn update_view(g: &mut Game) {
             Position { x: pos.x + dx, y: pos.y + dy }
         };
         for &(ray, pt) in fov_rules {
-            if ray.iter().cloned().map(to_pos).all(|p| g.tile(p) == Tile::Floor) {
+            if ray.iter().cloned().map(to_pos).all(|p| g.tile(p) == Tile::Ground) {
                 let pos = to_pos(pt);
                 let tile = g.tile(pos);
                 g.view.insert(pos, TileView::Visible {
@@ -52,7 +52,7 @@ pub fn update_view(g: &mut Game) {
                     item: None,
                     tile,
                 });
-                if tile == Tile::Floor {
+                if tile == Tile::Ground {
                     for &dir in &ORTHOGONAL_DIRECTIONS {
                         let pos = pos.step(dir);
                         if g.view(pos) == TileView::Unknown {
