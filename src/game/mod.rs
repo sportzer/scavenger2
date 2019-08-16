@@ -76,7 +76,7 @@ impl Game {
             for y in -20..=20 {
                 let sq = (x*x + y*y) as u32;
                 if sq <= 25 || sq < 20*20 && !g.rng.gen_ratio(sq, 20*20) {
-                    if sq <= 25 || g.rng.gen_ratio(95, 100) {
+                    if sq <= 2 || g.rng.gen_ratio(14, 15) {
                         g.tiles.insert(Position { x, y }, Tile::Ground);
                     } else {
                         g.tiles.insert(Position { x, y }, Tile::Tree);
