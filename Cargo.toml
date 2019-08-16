@@ -7,13 +7,15 @@ edition = "2018"
 [lib]
 name = "scavenger"
 
-[dependencies]
-rand = "0.7"
+[dependencies.rand]
+version = "0.7"
+default-features = false
 
 [dependencies.cursive]
 version = "0.12"
 default-features = false
 
 [features]
-default = ["ncurses-backend"]
+default = ["bin", "ncurses-backend"]
+bin = ["rand/std"]
 ncurses-backend = ["cursive/ncurses-backend"]
