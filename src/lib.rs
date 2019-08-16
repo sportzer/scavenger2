@@ -19,6 +19,7 @@ use game::{
     Action,
     EntityType,
     Game,
+    Obstruction,
     Tile,
     TileView,
     geometry::{Direction, Position},
@@ -55,6 +56,37 @@ impl Camera {
 
 impl View for GameMap {
     fn draw(&self, pr: &Printer) {
+        // TODO: make this an actual function or something
+        let render = |v| {
+            let black_bg = |color| ColorStyle::new(color, Color::Dark(BaseColor::Black));
+            if let TileView::Visible { actor: Some(_), .. } = v {
+                    ("@", black_bg(Color::Light(BaseColor::White)))
+            } else {
+                let (tile, vis) = match v {
+                    TileView::Visible { tile, .. } => (tile, true),
+                    TileView::Remembered { tile, .. } => (tile, false),
+                    TileView::Explorable => {
+                        return ("?", black_bg(Color::Dark(BaseColor::Magenta)));
+                    }
+                    TileView::Unknown => {
+                        return (" ", black_bg(Color::Dark(BaseColor::Black)));
+                    }
+                };
+                let (ch, color) = match tile {
+                    Tile::Wall => ("#", Color::Dark(BaseColor::Yellow)),
+                    Tile::Tree => ("#", Color::Dark(BaseColor::Green)),
+                    Tile::Ground => (".", Color::Dark(BaseColor::Yellow)),
+                };
+                let color = if vis { color } else { Color::Light(BaseColor::Black) };
+                let color_style = if tile.obstruction() == Obstruction::Full {
+                    ColorStyle::new(Color::Dark(BaseColor::Black), color)
+                } else {
+                    black_bg(color)
+                };
+                return (ch, color_style);
+            }
+        };
+
         let game = self.game.borrow();
 
         // TODO: recenter camera if off screen
@@ -66,21 +98,7 @@ impl View for GameMap {
         for x in 0..pr.size.x {
             for y in 0..pr.size.y {
                 let pos = camera.map_position(Vec2 { x, y });
-                let v = game.view(pos);
-                let (ch, color) = match v {
-                    TileView::Visible { actor: Some(_), .. } => ("@", Color::Light(BaseColor::White)),
-                    TileView::Visible { tile: Tile::Wall, .. } => ("#", Color::Dark(BaseColor::Yellow)),
-                    TileView::Visible { tile: Tile::Ground, .. } => (".", Color::Dark(BaseColor::Green)),
-                    TileView::Remembered { tile: Tile::Wall, .. } => ("#", Color::Light(BaseColor::Black)),
-                    TileView::Remembered { tile: Tile::Ground, .. } => (".", Color::Light(BaseColor::Black)),
-                    TileView::Unknown => (" ", Color::Dark(BaseColor::Black)),
-                    _ => ("?", Color::Dark(BaseColor::Magenta)),  // TODO
-                };
-                let color_style = if ch == "#" {
-                    ColorStyle::new(Color::Dark(BaseColor::Black), color)
-                } else {
-                    ColorStyle::new(color, Color::Dark(BaseColor::Black))
-                };
+                let (ch, color_style) = render(game.view(pos));
                 pr.with_color(color_style, |pr| {
                     pr.print(Vec2::new(x, y), ch);
                 });

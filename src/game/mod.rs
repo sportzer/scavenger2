@@ -15,7 +15,25 @@ pub enum EntityType {
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum Tile {
     Wall,
+    Tree,
     Ground,
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum Obstruction {
+    Full,
+    Partial,
+    None,
+}
+
+impl Tile {
+    pub fn obstruction(self) -> Obstruction {
+        match self {
+            Tile::Wall => Obstruction::Full,
+            Tile::Tree => Obstruction::Partial,
+            Tile::Ground => Obstruction::None,
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -29,7 +47,7 @@ pub enum TileView {
         item: Option<EntityType>,
         tile: Tile,
     },
-    Reachable,
+    Explorable,
     Unknown,
 }
 
@@ -58,7 +76,11 @@ impl Game {
             for y in -20..=20 {
                 let sq = (x*x + y*y) as u32;
                 if sq <= 25 || sq < 20*20 && !g.rng.gen_ratio(sq, 20*20) {
-                    g.tiles.insert(Position { x, y }, Tile::Ground);
+                    if sq <= 25 || g.rng.gen_ratio(95, 100) {
+                        g.tiles.insert(Position { x, y }, Tile::Ground);
+                    } else {
+                        g.tiles.insert(Position { x, y }, Tile::Tree);
+                    }
                 }
             }
         }
@@ -81,7 +103,7 @@ impl Game {
             Action::Move(dir) => {
                 let pos = self.player_pos;
                 let new_pos = pos.step(dir);
-                if self.tile(new_pos) == Tile::Wall {
+                if self.tile(new_pos).obstruction() != Obstruction::None {
                     return;
                 }
                 if let Some((a, b)) = match dir {
@@ -91,7 +113,9 @@ impl Game {
                     Direction::NorthWest => Some((Direction::North, Direction::West)),
                     _ => None,
                 } {
-                    if self.tile(pos.step(a)) == Tile::Wall && self.tile(pos.step(b)) == Tile::Wall {
+                    if self.tile(pos.step(a)).obstruction() == Obstruction::Full
+                        && self.tile(pos.step(b)).obstruction() == Obstruction::Full
+                    {
                         return;
                     }
                 }
