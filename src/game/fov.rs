@@ -1,4 +1,4 @@
-use super::{EntityType, Game, Obstruction, Tile, TileView};
+use super::{Game, Obstruction, Tile, TileView};
 use super::geometry::{ORTHOGONAL_DIRECTIONS, Position};
 
 pub fn update_view(g: &mut Game) {
@@ -8,12 +8,20 @@ pub fn update_view(g: &mut Game) {
         }
     }
 
-    let pos = g.player_pos;
-    g.view.insert(pos, TileView::Visible {
-        actor: Some(EntityType::Player),
-        item: None,
-        tile: g.tile(pos),
-    });
+    let mark_visible = |g: &mut Game, pos| {
+        let actor_type = g.actors.get(&pos).and_then(|e| g.types.get(e).cloned());
+        g.view.insert(pos, TileView::Visible {
+            actor: actor_type,
+            item: None,
+            tile: g.tile(pos),
+        });
+    };
+
+    let player_pos = match g.player_position() {
+        Some(pos) => pos,
+        None => { return; }
+    };
+    mark_visible(g, player_pos);
 
     let mappings: &[fn((i32, i32)) -> (i32, i32)] = &[
         |(x, y)| (x, y),
@@ -48,27 +56,21 @@ pub fn update_view(g: &mut Game) {
     for mapping in mappings {
         let to_pos = |pt| {
             let (dx, dy) = mapping(pt);
-            Position { x: pos.x + dx, y: pos.y + dy }
+            Position { x: player_pos.x + dx, y: player_pos.y + dy }
         };
         for &(ray, pt) in fov_rules {
             if ray.iter().all(|pt| match pt {
                 &F(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() == Obstruction::None,
                 &P(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() != Obstruction::Full,
             }) {
-                let pos = to_pos(pt);
-                let tile = g.tile(pos);
-                g.view.insert(pos, TileView::Visible {
-                    actor: None,
-                    item: None,
-                    tile,
-                });
+                mark_visible(g, to_pos(pt));
             }
         }
     }
 
     for dx in -4..=4 {
         for dy in -4..=4 {
-            let pos = Position { x: pos.x + dx, y: pos.y + dy };
+            let pos = Position { x: player_pos.x + dx, y: player_pos.y + dy };
             if g.view(pos) == TileView::Unknown {
                 for &dir in &ORTHOGONAL_DIRECTIONS {
                     let adj_pos = pos.step(dir);

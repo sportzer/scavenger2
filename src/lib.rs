@@ -60,6 +60,7 @@ impl GameMap {
         if let TileView::Visible { actor: Some(actor), .. } = view {
             return match actor {
                 EntityType::Player => ("@", black_bg(Color::Light(BaseColor::White))),
+                EntityType::Rat => ("r", black_bg(Color::Light(BaseColor::White))),
             };
         }
         let (item, tile, vis) = match view {
@@ -79,7 +80,7 @@ impl GameMap {
         let (ch, color) = match tile {
             Tile::Wall => ("#", Color::Dark(BaseColor::Yellow)),
             Tile::Tree => ("#", Color::Dark(BaseColor::Green)),
-            Tile::Ground => (".", Color::Dark(BaseColor::Yellow)),
+            Tile::Ground => (".", Color::Light(BaseColor::Yellow)),
         };
         let color = if vis { color } else { Color::Light(BaseColor::Black) };
         let color_style = if tile.obstruction() == Obstruction::Full {
@@ -123,11 +124,15 @@ impl GameMap {
 impl View for GameMap {
     fn draw(&self, pr: &Printer) {
         let game = self.game.borrow();
+        let player_pos = match game.player_position() {
+            Some(pos) => pos,
+            None => { return; }
+        };
 
         // TODO: recenter camera if off screen
         // TODO: manage screen resize
         let camera = self.camera.get().unwrap_or_else(|| {
-            Camera::centered(pr.size, game.player_position())
+            Camera::centered(pr.size, player_pos)
         });
         self.camera.set(Some(camera));
         for x in 0..pr.size.x {
@@ -147,13 +152,13 @@ impl View for GameMap {
             EventResult::with_cb(move |_| {
                 let mut game = game.borrow_mut();
                 // TODO: log error
-                let _ = game.take_action(action);
+                let _ = game.take_player_action(action);
             })
         };
         match ev {
             Event::Char('5') => action_cb(Action::Wait),
             Event::Char('.') => action_cb(Action::Wait),
-            _ => GameMap::event_direction(ev).map(|dir| action_cb(Action::Move(dir)))
+            _ => GameMap::event_direction(ev).map(|dir| action_cb(Action::MoveAttack(dir)))
                 .unwrap_or(EventResult::Ignored),
         }
     }
