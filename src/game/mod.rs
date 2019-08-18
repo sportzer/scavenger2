@@ -10,6 +10,22 @@ use geometry::{Direction, Position};
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum EntityType {
     Player,
+    // TODO: creatures
+    // Rat,
+    // Deer,
+    // Wolf,
+    // Dragon,
+    // TODO: items
+    // Scroll,
+    // Herb,
+    // Sword,
+    // Bow,
+    // Arrow,
+    // Rock,
+    // Diamond,
+    // TODO: cosmetic
+    // Skeleton,
+    // Corpse(Creature),
 }
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -17,6 +33,11 @@ pub enum Tile {
     Wall,
     Tree,
     Ground,
+    // TODO:
+    // ShallowWater,
+    // DeepWater,
+    // ShortGrass,
+    // LongGrass,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -51,10 +72,46 @@ pub enum TileView {
     Unknown,
 }
 
+impl TileView {
+    pub fn actor(&self) -> Option<EntityType> {
+        match self {
+            &TileView::Visible { actor, .. } => actor,
+            _ => None,
+        }
+    }
+
+    pub fn item(&self) -> Option<EntityType> {
+        match self {
+            &TileView::Visible { item, .. } => item,
+            &TileView::Remembered { item, .. } => item,
+            _ => None,
+        }
+    }
+
+    pub fn tile(&self) -> Option<Tile> {
+        match self {
+            &TileView::Visible { tile, .. } => Some(tile),
+            &TileView::Remembered { tile, .. } => Some(tile),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Action {
     Wait,
     Move(Direction),
+    // TODO:
+    // EatHerb
+    // ReadScroll
+    // ThrowRock(Position),
+    // FireBow(Direction),
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ActionError {
+    Impassible(Tile),
+    IllegalDiagonal,
 }
 
 pub struct Game {
@@ -72,6 +129,7 @@ impl Game {
             rng: StdRng::seed_from_u64(seed),
             view: HashMap::new(),
         };
+        // TODO: real map gen
         for x in -20..=20 {
             for y in -20..=20 {
                 let sq = (x*x + y*y) as u32;
@@ -96,15 +154,15 @@ impl Game {
         self.player_pos
     }
 
-    // TODO: return Result?
-    pub fn step(&mut self, action: Action) {
+    pub fn take_action(&mut self, action: Action) -> Result<(), ActionError> {
         match action {
             Action::Wait => {}
             Action::Move(dir) => {
                 let pos = self.player_pos;
                 let new_pos = pos.step(dir);
-                if self.tile(new_pos).obstruction() != Obstruction::None {
-                    return;
+                let new_tile = self.tile(new_pos);
+                if new_tile.obstruction() != Obstruction::None {
+                    return Err(ActionError::Impassible(new_tile));
                 }
                 if let Some((a, b)) = match dir {
                     Direction::NorthEast => Some((Direction::North, Direction::East)),
@@ -116,13 +174,14 @@ impl Game {
                     if self.tile(pos.step(a)).obstruction() == Obstruction::Full
                         && self.tile(pos.step(b)).obstruction() == Obstruction::Full
                     {
-                        return;
+                        return Err(ActionError::IllegalDiagonal);
                     }
                 }
                 self.player_pos = new_pos;
             }
         };
         fov::update_view(self);
+        Ok(())
     }
 
     fn tile(&self, pos: Position) -> Tile {

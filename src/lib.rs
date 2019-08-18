@@ -25,11 +25,6 @@ use game::{
     geometry::{Direction, Position},
 };
 
-struct GameMap {
-    game: Rc<RefCell<Game>>,
-    camera: Cell<Option<Camera>>,
-}
-
 #[derive(Copy, Clone)]
 struct Camera {
     screen_size: Vec2,
@@ -54,39 +49,79 @@ impl Camera {
     }
 }
 
-impl View for GameMap {
-    fn draw(&self, pr: &Printer) {
-        // TODO: make this an actual function or something
-        let render = |v| {
-            let black_bg = |color| ColorStyle::new(color, Color::Dark(BaseColor::Black));
-            if let TileView::Visible { actor: Some(_), .. } = v {
-                    ("@", black_bg(Color::Light(BaseColor::White)))
-            } else {
-                let (tile, vis) = match v {
-                    TileView::Visible { tile, .. } => (tile, true),
-                    TileView::Remembered { tile, .. } => (tile, false),
-                    TileView::Explorable => {
-                        return ("?", black_bg(Color::Dark(BaseColor::Magenta)));
-                    }
-                    TileView::Unknown => {
-                        return (" ", black_bg(Color::Dark(BaseColor::Black)));
-                    }
-                };
-                let (ch, color) = match tile {
-                    Tile::Wall => ("#", Color::Dark(BaseColor::Yellow)),
-                    Tile::Tree => ("#", Color::Dark(BaseColor::Green)),
-                    Tile::Ground => (".", Color::Dark(BaseColor::Yellow)),
-                };
-                let color = if vis { color } else { Color::Light(BaseColor::Black) };
-                let color_style = if tile.obstruction() == Obstruction::Full {
-                    ColorStyle::new(Color::Dark(BaseColor::Black), color)
-                } else {
-                    black_bg(color)
-                };
-                return (ch, color_style);
+struct GameMap {
+    game: Rc<RefCell<Game>>,
+    camera: Cell<Option<Camera>>,
+}
+
+impl GameMap {
+    fn render_tile(view: TileView) -> (&'static str, ColorStyle) {
+        let black_bg = |color| ColorStyle::new(color, Color::Dark(BaseColor::Black));
+        if let TileView::Visible { actor: Some(actor), .. } = view {
+            return match actor {
+                EntityType::Player => ("@", black_bg(Color::Light(BaseColor::White))),
+            };
+        }
+        let (item, tile, vis) = match view {
+            TileView::Visible { item, tile, .. } => (item, tile, true),
+            TileView::Remembered { item, tile, .. } => (item, tile, false),
+            TileView::Explorable => {
+                return ("?", black_bg(Color::Dark(BaseColor::Magenta)));
+            }
+            TileView::Unknown => {
+                return (" ", black_bg(Color::Dark(BaseColor::Black)));
             }
         };
+        if let Some(_item) = item {
+            // TODO: item rendering
+            return ("!", black_bg(Color::Light(BaseColor::Red)))
+        }
+        let (ch, color) = match tile {
+            Tile::Wall => ("#", Color::Dark(BaseColor::Yellow)),
+            Tile::Tree => ("#", Color::Dark(BaseColor::Green)),
+            Tile::Ground => (".", Color::Dark(BaseColor::Yellow)),
+        };
+        let color = if vis { color } else { Color::Light(BaseColor::Black) };
+        let color_style = if tile.obstruction() == Obstruction::Full {
+            ColorStyle::new(Color::Dark(BaseColor::Black), color)
+        } else {
+            black_bg(color)
+        };
+        (ch, color_style)
+    }
 
+    fn event_direction(ev: Event) -> Option<Direction> {
+        Some(match ev {
+            // arrow keys
+            Event::Key(Key::Up) => Direction::North,
+            Event::Key(Key::Down) => Direction::South,
+            Event::Key(Key::Left) => Direction::West,
+            Event::Key(Key::Right) => Direction::East,
+            // number keys
+            Event::Char('1') => Direction::SouthWest,
+            Event::Char('2') => Direction::South,
+            Event::Char('3') => Direction::SouthEast,
+            Event::Char('4') => Direction::West,
+            Event::Char('6') => Direction::East,
+            Event::Char('7') => Direction::NorthWest,
+            Event::Char('8') => Direction::North,
+            Event::Char('9') => Direction::NorthEast,
+            // vi keys
+            Event::Char('h') => Direction::West,
+            Event::Char('j') => Direction::South,
+            Event::Char('k') => Direction::North,
+            Event::Char('l') => Direction::East,
+            Event::Char('y') => Direction::NorthWest,
+            Event::Char('u') => Direction::NorthEast,
+            Event::Char('b') => Direction::SouthWest,
+            Event::Char('n') => Direction::SouthEast,
+            _ => { return None; }
+        })
+    }
+}
+
+impl View for GameMap {
+    fn draw(&self, pr: &Printer) {
         let game = self.game.borrow();
 
         // TODO: recenter camera if off screen
@@ -98,7 +133,7 @@ impl View for GameMap {
         for x in 0..pr.size.x {
             for y in 0..pr.size.y {
                 let pos = camera.map_position(Vec2 { x, y });
-                let (ch, color_style) = render(game.view(pos));
+                let (ch, color_style) = GameMap::render_tile(game.view(pos));
                 pr.with_color(color_style, |pr| {
                     pr.print(Vec2::new(x, y), ch);
                 });
@@ -111,35 +146,15 @@ impl View for GameMap {
             let game = self.game.clone();
             EventResult::with_cb(move |_| {
                 let mut game = game.borrow_mut();
-                game.step(action);
+                // TODO: log error
+                let _ = game.take_action(action);
             })
         };
-        // TODO: more key bindings
         match ev {
-            // arrow keys
-            Event::Key(Key::Up) => action_cb(Action::Move(Direction::North)),
-            Event::Key(Key::Down) => action_cb(Action::Move(Direction::South)),
-            Event::Key(Key::Left) => action_cb(Action::Move(Direction::West)),
-            Event::Key(Key::Right) => action_cb(Action::Move(Direction::East)),
-            // number keys
-            Event::Char('1') => action_cb(Action::Move(Direction::SouthWest)),
-            Event::Char('2') => action_cb(Action::Move(Direction::South)),
-            Event::Char('3') => action_cb(Action::Move(Direction::SouthEast)),
-            Event::Char('4') => action_cb(Action::Move(Direction::West)),
-            Event::Char('6') => action_cb(Action::Move(Direction::East)),
-            Event::Char('7') => action_cb(Action::Move(Direction::NorthWest)),
-            Event::Char('8') => action_cb(Action::Move(Direction::North)),
-            Event::Char('9') => action_cb(Action::Move(Direction::NorthEast)),
-            // vi keys
-            Event::Char('h') => action_cb(Action::Move(Direction::West)),
-            Event::Char('j') => action_cb(Action::Move(Direction::South)),
-            Event::Char('k') => action_cb(Action::Move(Direction::North)),
-            Event::Char('l') => action_cb(Action::Move(Direction::East)),
-            Event::Char('y') => action_cb(Action::Move(Direction::NorthWest)),
-            Event::Char('u') => action_cb(Action::Move(Direction::NorthEast)),
-            Event::Char('b') => action_cb(Action::Move(Direction::SouthWest)),
-            Event::Char('n') => action_cb(Action::Move(Direction::SouthEast)),
-            _ => EventResult::Ignored,
+            Event::Char('5') => action_cb(Action::Wait),
+            Event::Char('.') => action_cb(Action::Wait),
+            _ => GameMap::event_direction(ev).map(|dir| action_cb(Action::Move(dir)))
+                .unwrap_or(EventResult::Ignored),
         }
     }
 

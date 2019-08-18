@@ -1,4 +1,4 @@
-use super::{EntityType, Game, Obstruction, TileView};
+use super::{EntityType, Game, Obstruction, Tile, TileView};
 use super::geometry::{ORTHOGONAL_DIRECTIONS, Position};
 
 pub fn update_view(g: &mut Game) {
@@ -52,13 +52,9 @@ pub fn update_view(g: &mut Game) {
         };
         for &(ray, pt) in fov_rules {
             if ray.iter().all(|pt| match pt {
-                &F(dx, dy) => {
-                    g.tile(to_pos((dx, dy))).obstruction() == Obstruction::None
-                },
-                &P(dx, dy) => {
-                    g.tile(to_pos((dx, dy))).obstruction() != Obstruction::Full
-                },
-            }) { // TODO
+                &F(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() == Obstruction::None,
+                &P(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() != Obstruction::Full,
+            }) {
                 let pos = to_pos(pt);
                 let tile = g.tile(pos);
                 g.view.insert(pos, TileView::Visible {
@@ -76,24 +72,18 @@ pub fn update_view(g: &mut Game) {
             if g.view(pos) == TileView::Unknown {
                 for &dir in &ORTHOGONAL_DIRECTIONS {
                     let adj_pos = pos.step(dir);
-                    let tile = match g.view(adj_pos) {
-                        TileView::Visible { tile, .. } => tile,
-                        TileView::Remembered { tile, .. } => tile,
-                        _ => { continue; }
-                    };
-                    if match tile.obstruction() {
-                        Obstruction::None => true,
-                        Obstruction::Partial => ORTHOGONAL_DIRECTIONS.iter().cloned().any(|d| {
-                            d != dir && d != dir.reverse() && match g.view(adj_pos.step(d)) {
-                                TileView::Visible { tile, .. } => tile.obstruction() == Obstruction::None,
-                                TileView::Remembered { tile, .. } => tile.obstruction() == Obstruction::None,
-                                _ => false,
-                            }
-                        }),
-                        Obstruction::Full => false,
-                    } {
-                        g.view.insert(pos, TileView::Explorable);
-                        break;
+                    if let Some(tile) = g.view(adj_pos).tile() {
+                        if match tile.obstruction() {
+                            Obstruction::None => true,
+                            Obstruction::Partial => ORTHOGONAL_DIRECTIONS.iter().cloned().any(|d| {
+                                d != dir && d != dir.reverse()
+                                    && g.view(adj_pos.step(d)).tile().map(Tile::obstruction) == Some(Obstruction::None)
+                            }),
+                            Obstruction::Full => false,
+                        } {
+                            g.view.insert(pos, TileView::Explorable);
+                            break;
+                        }
                     }
                 }
             }
