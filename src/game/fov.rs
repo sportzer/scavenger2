@@ -1,4 +1,4 @@
-use super::{Game, Obstruction, Tile, TileView};
+use super::{EntityType, Game, Obstruction, Tile, TileView};
 use super::geometry::{ORTHOGONAL_DIRECTIONS, Position};
 
 pub fn update_view(g: &mut Game) {
@@ -9,7 +9,9 @@ pub fn update_view(g: &mut Game) {
     }
 
     let mark_visible = |g: &mut Game, pos| {
-        let actor_type = g.actors.get(&pos).and_then(|e| g.types.get(e).cloned());
+        // TODO: what if entity type not actor?
+        let actor_type = g.actors.get(&pos).and_then(|e| g.types.get(e).cloned())
+            .and_then(|t| if let EntityType::Actor(a) = t { Some(a) } else { None });
         g.view.insert(pos, TileView::Visible {
             actor: actor_type,
             item: None,

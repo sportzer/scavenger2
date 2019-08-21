@@ -1,14 +1,18 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::num::NonZeroU64;
 
 use rand::prelude::*;
 
+mod actor;
 mod fov;
 mod map;
 
+use actor::ActorState;
+use geometry::{Direction, Position};
+
 pub mod geometry;
 
-use geometry::{Direction, Position};
+pub use actor::ActorType;
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq, Ord, PartialOrd)]
 struct Entity(NonZeroU64);
@@ -18,12 +22,7 @@ const PLAYER: Entity = Entity(unsafe { NonZeroU64::new_unchecked(1) });
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum EntityType {
-    Player,
-    // TODO: creatures
-    Rat,
-    // Deer,
-    // Wolf,
-    // Dragon,
+    Actor(ActorType),
     // TODO: items
     // Scroll,
     // Herb,
@@ -69,7 +68,7 @@ impl Tile {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TileView {
     Visible {
-        actor: Option<EntityType>,
+        actor: Option<ActorType>,
         item: Option<EntityType>,
         tile: Tile,
     },
@@ -82,7 +81,7 @@ pub enum TileView {
 }
 
 impl TileView {
-    pub fn actor(&self) -> Option<EntityType> {
+    pub fn actor(&self) -> Option<ActorType> {
         match self {
             &TileView::Visible { actor, .. } => actor,
             _ => None,
@@ -119,20 +118,23 @@ pub enum Action {
     // FireBow(Direction),
 }
 
+// Include info on what exactly went wrong in error?
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ActionError {
     Unspecified,
-    // Include info on what you bumped into?
     IllegalDiagonal,
     Impassible,
     Occupied,
+    InvalidActor,
 }
 
 type ActionResult<Ok = ()> = Result<Ok, ActionError>;
 
 pub struct Game {
     tiles: HashMap<Position, Tile>,
+
     types: HashMap<Entity, EntityType>,
+    states: BTreeMap<Entity, ActorState>,
 
     // TODO: replace with some sort of indexed map thing
     positions: HashMap<Entity, Position>,
@@ -148,13 +150,14 @@ impl Game {
         let mut g = Game {
             tiles: HashMap::new(),
             types: HashMap::new(),
+            states: BTreeMap::new(),
             positions: HashMap::new(),
             actors: HashMap::new(),
             rng: StdRng::seed_from_u64(seed),
             prev_entity: PLAYER,
             view: HashMap::new(),
         };
-        g.types.insert(PLAYER, EntityType::Player);
+        g.types.insert(PLAYER, EntityType::Actor(ActorType::Player));
         map::generate_basin(&mut g);
         // TODO: handle errors
         let _ = g.set_position(PLAYER, Position { x: 0, y: 0 });
@@ -171,7 +174,24 @@ impl Game {
     }
 
     pub fn take_player_action(&mut self, action: Action) -> ActionResult {
-        let pos = self.player_position().ok_or(ActionError::Unspecified)?;
+        self.take_action(PLAYER, action)?;
+        fov::update_view(self);
+        actor::take_actions(self);
+        fov::update_view(self);
+        actor::notice_player(self);
+        Ok(())
+    }
+
+    fn tile(&self, pos: Position) -> Tile {
+        self.tiles.get(&pos).cloned().unwrap_or(Tile::Wall)
+    }
+
+    fn take_action(&mut self, e: Entity, action: Action) -> ActionResult {
+        let _actor_type = match self.types.get(&e) {
+            Some(EntityType::Actor(a)) => a,
+            _ => { return Err(ActionError::InvalidActor); }
+        };
+        let pos = self.positions.get(&e).cloned().ok_or(ActionError::InvalidActor)?;
         // TODO: at some point the various checks used could leak info, so should consume a turn
         // (and update known map information) if you don't already know they're invalid
         match action {
@@ -190,32 +210,27 @@ impl Game {
                         return Err(ActionError::IllegalDiagonal);
                     }
                 }
-                self.set_position(PLAYER, pos.step(dir))?;
+                self.set_position(e, pos.step(dir))?;
             }
             Action::Attack(dir) => {
                 // TODO: real damage and death handling
                 let target_pos = pos.step(dir);
-                if let Some(&e) = self.actors.get(&target_pos) {
+                if let Some(&target) = self.actors.get(&target_pos) {
                     self.actors.remove(&target_pos);
-                    self.positions.remove(&e);
-                    self.types.remove(&e);
+                    self.positions.remove(&target);
+                    self.types.remove(&target);
                 }
             }
             Action::MoveAttack(dir) => {
-                let r = self.take_player_action(Action::Move(dir));
-                if r == Err(ActionError::Occupied) {
-                    self.take_player_action(Action::Attack(dir))?;
+                let result = self.take_player_action(Action::Move(dir));
+                if result == Err(ActionError::Occupied) {
+                    self.take_action(e, Action::Attack(dir))?;
                 } else {
-                    r?;
+                    result?;
                 }
             }
         };
-        fov::update_view(self);
         Ok(())
-    }
-
-    fn tile(&self, pos: Position) -> Tile {
-        self.tiles.get(&pos).cloned().unwrap_or(Tile::Wall)
     }
 
     fn new_entity(&mut self, entity_type: EntityType) -> Entity {

@@ -17,7 +17,7 @@ mod game;
 
 use game::{
     Action,
-    EntityType,
+    ActorType,
     Game,
     Obstruction,
     Tile,
@@ -59,8 +59,8 @@ impl GameMap {
         let black_bg = |color| ColorStyle::new(color, Color::Dark(BaseColor::Black));
         if let TileView::Visible { actor: Some(actor), .. } = view {
             return match actor {
-                EntityType::Player => ("@", black_bg(Color::Light(BaseColor::White))),
-                EntityType::Rat => ("r", black_bg(Color::Light(BaseColor::White))),
+                ActorType::Player => ("@", black_bg(Color::Light(BaseColor::White))),
+                ActorType::Rat => ("r", black_bg(Color::Light(BaseColor::White))),
             };
         }
         let (item, tile, vis) = match view {

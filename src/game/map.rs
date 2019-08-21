@@ -2,6 +2,7 @@ use rand::prelude::*;
 
 use super::{EntityType, Game, Tile};
 use super::geometry::Position;
+use super::actor::{ActorState, ActorType};
 
 pub fn generate_basin(g: &mut Game) {
     // TODO: real map gen
@@ -15,8 +16,9 @@ pub fn generate_basin(g: &mut Game) {
                 } else if g.rng.gen_ratio(14, 15) {
                     g.tiles.insert(pos, Tile::Ground);
                     if g.rng.gen_ratio(1, 15) {
-                        let rat = g.new_entity(EntityType::Rat);
+                        let rat = g.new_entity(EntityType::Actor(ActorType::Rat));
                         let _ = g.set_position(rat, pos);
+                        g.states.insert(rat, ActorState::Wait);
                     }
                 } else {
                     g.tiles.insert(pos, Tile::Tree);
