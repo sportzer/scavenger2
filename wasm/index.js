@@ -7,16 +7,13 @@ let display = null;
 let game = null;
 
 initDisplay = () => {
-    const loadingDiv = document.getElementById("loadingDiv");
-    loadingDiv.parentNode.removeChild(loadingDiv);
-
     display = new ROT.Display();
     display.setOptions({
         width: WIDTH,
         height: HEIGHT,
         fontSize: 18,
         fontFamily: "'Ubuntu Mono', monospace",
-        bg: "silver",
+        bg: "black",
     });
     document.body.appendChild(display.getContainer());
 
