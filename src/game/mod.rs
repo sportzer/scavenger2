@@ -126,6 +126,7 @@ pub enum ActionError {
     Impassible,
     Occupied,
     InvalidActor,
+    NoValidTarget,
 }
 
 type ActionResult<Ok = ()> = Result<Ok, ActionError>;
@@ -190,8 +191,8 @@ impl Game {
     }
 
     fn take_action(&mut self, e: Entity, action: Action) -> ActionResult {
-        let _actor_type = match self.types.get(&e) {
-            Some(EntityType::Actor(a)) => a,
+        let actor_type = match self.types.get(&e) {
+            Some(&EntityType::Actor(a)) => a,
             _ => { return Err(ActionError::InvalidActor); }
         };
         let pos = self.positions.get(&e).cloned().ok_or(ActionError::InvalidActor)?;
@@ -216,16 +217,20 @@ impl Game {
                 self.set_actor_position(e, pos.step(dir))?;
             }
             Action::Attack(dir) => {
-                // TODO: real damage and death handling
                 let target_pos = pos.step(dir);
                 if let Some(&target) = self.actors.get(&target_pos) {
-                    self.actors.remove(&target_pos);
-                    self.states.remove(&target);
-                    self.objects.entry(target_pos).or_insert_with(Vec::new).push(target);
-                    if let Some(&EntityType::Actor(t)) = self.types.get(&target) {
-                        self.types.insert(target, EntityType::Corpse(t));
+                    if let Some(&EntityType::Actor(target_type)) = self.types.get(&target) {
+                        if actor_type == ActorType::Player || target_type == ActorType::Player {
+                            // TODO: real damage and death handling
+                            self.actors.remove(&target_pos);
+                            self.states.remove(&target);
+                            self.objects.entry(target_pos).or_insert_with(Vec::new).push(target);
+                            self.types.insert(target, EntityType::Corpse(target_type));
+                            return Ok(());
+                        }
                     }
                 }
+                return Err(ActionError::NoValidTarget);
             }
             Action::MoveAttack(dir) => {
                 let result = self.take_action(e, Action::Move(dir));
