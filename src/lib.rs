@@ -157,18 +157,21 @@ impl View for GameMap {
     }
 
     fn on_event(&mut self, ev: Event) -> EventResult {
-        let action_cb = move |action| {
-            let game = self.game.clone();
-            EventResult::with_cb(move |_| {
-                let mut game = game.borrow_mut();
-                // TODO: log error
-                let _ = game.take_player_action(action);
-            })
+        let do_action = |action| {
+            let mut game = self.game.borrow_mut();
+            // TODO: log error?
+            let _ = game.take_player_action(action);
+            EventResult::Consumed(None)
         };
         match ev {
-            Event::Char('5') => action_cb(Action::Wait),
-            Event::Char('.') => action_cb(Action::Wait),
-            _ => GameMap::event_direction(ev).map(|dir| action_cb(Action::MoveAttack(dir)))
+            Event::Char('5') => do_action(Action::Wait),
+            Event::Char('.') => do_action(Action::Wait),
+            Event::Char('R') => {
+                self.camera.set(None);
+                self.game.borrow_mut().restart();
+                EventResult::Consumed(None)
+            },
+            _ => GameMap::event_direction(ev).map(|dir| do_action(Action::MoveAttack(dir)))
                 .unwrap_or(EventResult::Ignored),
         }
     }

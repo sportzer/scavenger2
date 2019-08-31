@@ -149,6 +149,10 @@ pub struct Game {
 
 impl Game {
     pub fn new(seed: u64) -> Game {
+        Game::new_from_rng(StdRng::seed_from_u64(seed))
+    }
+
+    fn new_from_rng(rng: StdRng) -> Game {
         let mut g = Game {
             tiles: HashMap::new(),
             types: HashMap::new(),
@@ -156,7 +160,7 @@ impl Game {
             positions: HashMap::new(),
             actors: HashMap::new(),
             objects: HashMap::new(),
-            rng: StdRng::seed_from_u64(seed),
+            rng: rng,
             prev_entity: PLAYER,
             view: HashMap::new(),
         };
@@ -167,6 +171,10 @@ impl Game {
         fov::update_view(&mut g);
         actor::notice_player(&mut g);
         g
+    }
+
+    pub fn restart(&mut self) {
+        *self = Game::new_from_rng(self.rng.clone());
     }
 
     pub fn view(&self, pos: Position) -> TileView {
