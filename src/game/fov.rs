@@ -3,8 +3,8 @@ use super::geometry::{ORTHOGONAL_DIRECTIONS, Position};
 
 pub fn update_view(g: &mut Game) {
     for v in g.view.values_mut() {
-        if let &mut TileView::Visible { item, tile, .. } = v {
-            *v = TileView::Remembered { item, tile };
+        if let &mut TileView::Visible { object, tile, .. } = v {
+            *v = TileView::Remembered { object, tile };
         }
     }
 
@@ -14,7 +14,8 @@ pub fn update_view(g: &mut Game) {
             .and_then(|t| if let EntityType::Actor(a) = t { Some(a) } else { None });
         g.view.insert(pos, TileView::Visible {
             actor: actor_type,
-            item: None,
+            object: g.objects.get(&pos).and_then(|v| v.last())
+                .and_then(|&e| g.types.get(&e).cloned()),
             tile: g.tile(pos),
         });
     };

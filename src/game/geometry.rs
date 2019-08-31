@@ -37,15 +37,41 @@ pub static DIAGONAL_DIRECTIONS: [Direction; 4] = [
 
 impl Direction {
     pub fn reverse(self) -> Direction {
+        Direction::from_index(self.to_index()+4)
+    }
+
+    pub fn rotate_clockwise(self) -> Direction {
+        Direction::from_index(self.to_index()+1)
+    }
+
+    pub fn rotate_counterclockwise(self) -> Direction {
+        Direction::from_index(self.to_index()-1)
+    }
+
+    pub fn to_index(self) -> i32 {
         match self {
-            Direction::North => Direction::South,
-            Direction::NorthEast => Direction::SouthWest,
-            Direction::East => Direction::West,
-            Direction::SouthEast => Direction::NorthWest,
-            Direction::South => Direction::North,
-            Direction::SouthWest => Direction::NorthEast,
-            Direction::West => Direction::East,
-            Direction::NorthWest => Direction::SouthEast,
+            Direction::North => 0,
+            Direction::NorthEast => 1,
+            Direction::East => 2,
+            Direction::SouthEast => 3,
+            Direction::South => 4,
+            Direction::SouthWest => 5,
+            Direction::West => 6,
+            Direction::NorthWest => 7,
+        }
+    }
+
+    pub fn from_index(idx: i32) -> Self {
+        match idx & 7 {
+            0 => Direction::North,
+            1 => Direction::NorthEast,
+            2 => Direction::East,
+            3 => Direction::SouthEast,
+            4 => Direction::South,
+            5 => Direction::SouthWest,
+            6 => Direction::West,
+            7 => Direction::NorthWest,
+            _ => { unreachable!(); }
         }
     }
 

@@ -1,4 +1,6 @@
-use super::{Entity, EntityType, Game, Obstruction, PLAYER, Tile, TileView};
+use rand::prelude::*;
+
+use super::{Action, Entity, EntityType, Game, Obstruction, PLAYER, Tile, TileView};
 use super::geometry::{Direction, Position};
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -19,8 +21,60 @@ pub(super) enum ActorState {
     Flee(Entity, Position),
 }
 
+fn path(rng: &mut impl Rng, from: Position, to: Position) -> Option<[Direction; 4]> {
+    let dx = to.x - from.x;
+    let dy = to.y - from.y;
+    use std::cmp::Ordering::*;
+    use Direction::*;
+    let (dir2, w2, dir1, w1, diag) = match (dx.cmp(&0), dy.cmp(&0)) {
+        (Greater, Less) => (North, -dy, East, dx, NorthEast),
+        (Greater, Greater) => (East, dx, South, dy, SouthEast),
+        (Less, Greater) => (South, dy, West, -dx, SouthWest),
+        (Less, Less) => (West, -dx, North, -dy, NorthWest),
+        (Equal, Less) => (North, 1, North, 1, North),
+        (Greater, Equal) => (East, 1, East, 1, East),
+        (Equal, Greater) => (South, 1, South, 1, South),
+        (Less, Equal) => (West, 1, West, 1, West),
+        (Equal, Equal) => { return None; }
+    };
+    let (dir1, dir2, w1, w2) = if w1 == w2 {
+        (diag, diag, 1, 1)
+    } else if w1 > w2 {
+        (dir1, diag, w1-w2, w2)
+    } else {
+        (diag, dir2, w1, w2-w1)
+    };
+    Some(if rng.gen_ratio(w1 as u32, (w1+w2) as u32) {
+        [dir1, dir2, dir1.rotate_counterclockwise(), dir2.rotate_clockwise()]
+    } else {
+        [dir2, dir1, dir2.rotate_clockwise(), dir1.rotate_counterclockwise()]
+    })
+}
+
 pub(super) fn take_actions(g: &mut Game) {
     // TODO
+    for (e, state) in g.states.clone() {
+        if let Some(&epos) = g.positions.get(&e) {
+            match state {
+                ActorState::Wait => {}
+                ActorState::Wander(pos) => {}
+                ActorState::Pursue(o, pos) => {
+                    if let Some(dirs) = path(&mut g.rng, epos, pos) {
+                        for &dir in &dirs {
+                            if let Ok(_) = g.take_action(e, Action::MoveAttack(dir)) {
+                                break;
+                            }
+                        }
+                    } else {
+                        g.states.insert(e, ActorState::Wait);
+                    }
+                }
+                ActorState::Flee(o, pos) => {}
+            }
+        } else {
+            g.states.insert(e, ActorState::Wait);
+        }
+    }
 }
 
 pub(super) fn notice_player(g: &mut Game) {

@@ -17,7 +17,7 @@ pub fn generate_basin(g: &mut Game) {
                     g.tiles.insert(pos, Tile::Ground);
                     if g.rng.gen_ratio(1, 15) {
                         let rat = g.new_entity(EntityType::Actor(ActorType::Rat));
-                        let _ = g.set_position(rat, pos);
+                        let _ = g.set_actor_position(rat, pos);
                         g.states.insert(rat, ActorState::Wait);
                     }
                 } else {

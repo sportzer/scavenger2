@@ -18,6 +18,7 @@ mod game;
 use game::{
     Action,
     ActorType,
+    EntityType,
     Game,
     Obstruction,
     Tile,
@@ -56,6 +57,7 @@ struct GameMap {
 
 impl GameMap {
     fn render_tile(view: TileView) -> (&'static str, ColorStyle) {
+        // TODO: what if actor/object is embedded in a solid wall?
         let black_bg = |color| ColorStyle::new(color, Color::Dark(BaseColor::Black));
         if let TileView::Visible { actor: Some(actor), .. } = view {
             return match actor {
@@ -63,9 +65,9 @@ impl GameMap {
                 ActorType::Rat => ("r", black_bg(Color::Light(BaseColor::White))),
             };
         }
-        let (item, tile, vis) = match view {
-            TileView::Visible { item, tile, .. } => (item, tile, true),
-            TileView::Remembered { item, tile, .. } => (item, tile, false),
+        let (object, tile, vis) = match view {
+            TileView::Visible { object, tile, .. } => (object, tile, true),
+            TileView::Remembered { object, tile, .. } => (object, tile, false),
             TileView::Explorable => {
                 return ("?", black_bg(Color::Dark(BaseColor::Magenta)));
             }
@@ -73,9 +75,17 @@ impl GameMap {
                 return (" ", black_bg(Color::Dark(BaseColor::Black)));
             }
         };
-        if let Some(_item) = item {
-            // TODO: item rendering
-            return ("!", black_bg(Color::Light(BaseColor::Red)))
+        if let Some(object) = object {
+            let color = if vis {
+                Color::Light(BaseColor::Red)
+            } else {
+                Color::Dark(BaseColor::Red)
+            };
+            return match object {
+                // TODO: handle Actor some other way?
+                EntityType::Actor(_) => ("!", black_bg(color)),
+                EntityType::Corpse(_) => ("%", black_bg(color)),
+            };
         }
         let (ch, color) = match tile {
             Tile::Wall => ("#", Color::Dark(BaseColor::Yellow)),

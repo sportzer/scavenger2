@@ -23,6 +23,7 @@ const PLAYER: Entity = Entity(unsafe { NonZeroU64::new_unchecked(1) });
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
 pub enum EntityType {
     Actor(ActorType),
+    Corpse(ActorType),
     // TODO: items
     // Scroll,
     // Herb,
@@ -33,7 +34,6 @@ pub enum EntityType {
     // Diamond,
     // TODO: cosmetic
     // Skeleton,
-    // Corpse(Creature),
 }
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -69,11 +69,11 @@ impl Tile {
 pub enum TileView {
     Visible {
         actor: Option<ActorType>,
-        item: Option<EntityType>,
+        object: Option<EntityType>,
         tile: Tile,
     },
     Remembered {
-        item: Option<EntityType>,
+        object: Option<EntityType>,
         tile: Tile,
     },
     Explorable,
@@ -88,10 +88,10 @@ impl TileView {
         }
     }
 
-    pub fn item(&self) -> Option<EntityType> {
+    pub fn object(&self) -> Option<EntityType> {
         match self {
-            &TileView::Visible { item, .. } => item,
-            &TileView::Remembered { item, .. } => item,
+            &TileView::Visible { object, .. } => object,
+            &TileView::Remembered { object, .. } => object,
             _ => None,
         }
     }
@@ -139,6 +139,7 @@ pub struct Game {
     // TODO: replace with some sort of indexed map thing
     positions: HashMap<Entity, Position>,
     actors: HashMap<Position, Entity>,
+    objects: HashMap<Position, Vec<Entity>>,
 
     rng: StdRng,
     prev_entity: Entity,
@@ -153,6 +154,7 @@ impl Game {
             states: BTreeMap::new(),
             positions: HashMap::new(),
             actors: HashMap::new(),
+            objects: HashMap::new(),
             rng: StdRng::seed_from_u64(seed),
             prev_entity: PLAYER,
             view: HashMap::new(),
@@ -160,8 +162,9 @@ impl Game {
         g.types.insert(PLAYER, EntityType::Actor(ActorType::Player));
         map::generate_basin(&mut g);
         // TODO: handle errors
-        let _ = g.set_position(PLAYER, Position { x: 0, y: 0 });
+        let _ = g.set_actor_position(PLAYER, Position { x: 0, y: 0 });
         fov::update_view(&mut g);
+        actor::notice_player(&mut g);
         g
     }
 
@@ -210,19 +213,22 @@ impl Game {
                         return Err(ActionError::IllegalDiagonal);
                     }
                 }
-                self.set_position(e, pos.step(dir))?;
+                self.set_actor_position(e, pos.step(dir))?;
             }
             Action::Attack(dir) => {
                 // TODO: real damage and death handling
                 let target_pos = pos.step(dir);
                 if let Some(&target) = self.actors.get(&target_pos) {
                     self.actors.remove(&target_pos);
-                    self.positions.remove(&target);
-                    self.types.remove(&target);
+                    self.states.remove(&target);
+                    self.objects.entry(target_pos).or_insert_with(Vec::new).push(target);
+                    if let Some(&EntityType::Actor(t)) = self.types.get(&target) {
+                        self.types.insert(target, EntityType::Corpse(t));
+                    }
                 }
             }
             Action::MoveAttack(dir) => {
-                let result = self.take_player_action(Action::Move(dir));
+                let result = self.take_action(e, Action::Move(dir));
                 if result == Err(ActionError::Occupied) {
                     self.take_action(e, Action::Attack(dir))?;
                 } else {
@@ -245,7 +251,7 @@ impl Game {
         }
     }
 
-    fn set_position(&mut self, e: Entity, pos: Position) -> ActionResult<Option<Position>> {
+    fn set_actor_position(&mut self, e: Entity, pos: Position) -> ActionResult<Option<Position>> {
         let new_tile = self.tile(pos);
         if new_tile.obstruction() != Obstruction::None {
             return Err(ActionError::Impassible);
