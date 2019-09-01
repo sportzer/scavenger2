@@ -16,6 +16,7 @@ initDisplay = () => {
         bg: "black",
     });
     document.body.appendChild(display.getContainer());
+    document.body.focus();
 
     document.addEventListener("keydown", e => {
         if (game == null) { return; }
@@ -77,5 +78,6 @@ wasm_bindgen('./scavenger_wasm_bg.wasm').then(() => {
         requestAnimationFrame(renderLoop);
     };
 
+    document.body.focus();
     requestAnimationFrame(renderLoop);
 });
