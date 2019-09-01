@@ -19,6 +19,10 @@ pub fn generate_basin(g: &mut Game) {
                         let rat = g.new_entity(EntityType::Actor(ActorType::Rat));
                         let _ = g.set_actor_position(rat, pos);
                         g.states.insert(rat, ActorState::Wait);
+                    } else if g.rng.gen_ratio(1, 50) {
+                        let wolf = g.new_entity(EntityType::Actor(ActorType::Wolf));
+                        let _ = g.set_actor_position(wolf, pos);
+                        g.states.insert(wolf, ActorState::Wait);
                     }
                 } else {
                     g.tiles.insert(pos, Tile::Tree);

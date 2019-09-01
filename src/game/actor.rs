@@ -7,9 +7,9 @@ use super::geometry::{Direction, Position};
 pub enum ActorType {
     Player,
     Rat,
+    Wolf,
     // TODO: more creatures
     // Deer,
-    // Wolf,
     // Dragon,
 }
 
@@ -51,28 +51,40 @@ fn path(rng: &mut impl Rng, from: Position, to: Position) -> Option<[Direction; 
     })
 }
 
+fn move_towards(g: &mut Game, e: Entity, pos: Position) {
+    if let Some(&epos) = g.positions.get(&e) {
+        if let Some(dirs) = path(&mut g.rng, epos, pos) {
+            for &dir in &dirs {
+                if let Ok(_) = g.take_action(e, Action::MoveAttack(dir)) {
+                    return;
+                }
+            }
+        }
+    }
+    g.states.insert(e, ActorState::Wait);
+}
+
 pub(super) fn take_actions(g: &mut Game) {
     // TODO
     for (e, state) in g.states.clone() {
-        if let Some(&epos) = g.positions.get(&e) {
-            match state {
-                ActorState::Wait => {}
-                ActorState::Wander(pos) => {}
-                ActorState::Pursue(o, pos) => {
-                    if let Some(dirs) = path(&mut g.rng, epos, pos) {
-                        for &dir in &dirs {
-                            if let Ok(_) = g.take_action(e, Action::MoveAttack(dir)) {
-                                break;
-                            }
-                        }
-                    } else {
-                        g.states.insert(e, ActorState::Wait);
-                    }
+        let actor_type = match g.types.get(&e).cloned() {
+            Some(EntityType::Actor(a)) => a,
+            _ => { continue; }
+        };
+        match state {
+            ActorState::Wait => {}
+            ActorState::Wander(pos) => {}
+            ActorState::Pursue(o, pos) => match actor_type {
+                ActorType::Player => {}
+                ActorType::Rat => {
+                    move_towards(g, e, pos);
                 }
-                ActorState::Flee(o, pos) => {}
+                ActorType::Wolf => {
+                    move_towards(g, e, pos);
+                    move_towards(g, e, pos);
+                }
             }
-        } else {
-            g.states.insert(e, ActorState::Wait);
+            ActorState::Flee(o, pos) => {}
         }
     }
 }
@@ -92,7 +104,7 @@ pub(super) fn notice_player(g: &mut Game) {
             if let Some(&TileView::Visible { .. }) = g.view.get(&pos) {
                 match actor_type {
                     ActorType::Player => {}
-                    ActorType::Rat => {
+                    ActorType::Rat | ActorType::Wolf => {
                         *s = ActorState::Pursue(PLAYER, player_pos)
                     }
                 }

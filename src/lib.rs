@@ -63,6 +63,7 @@ impl GameMap {
             return match actor {
                 ActorType::Player => ("@", black_bg(Color::Light(BaseColor::White))),
                 ActorType::Rat => ("r", black_bg(Color::Light(BaseColor::White))),
+                ActorType::Wolf => ("w", black_bg(Color::Light(BaseColor::White))),
             };
         }
         let (object, tile, vis) = match view {
