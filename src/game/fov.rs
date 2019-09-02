@@ -2,6 +2,61 @@ use super::{EntityType, Game, Obstruction, Tile, TileView};
 use super::geometry::{ORTHOGONAL_DIRECTIONS, Position};
 use super::actor::{ActorState, ActorType};
 
+enum RulePt {
+    F(i32, i32),
+    P(i32, i32),
+}
+
+static FOV_RULES: &'static [(&'static [RulePt], (i32, i32))] = {
+    use RulePt::*;
+    &[
+        (&[], (1, 0)),
+        (&[P(1, 0)], (1, 1)),
+        (&[F(1, 0)], (2, 0)),
+        (&[P(0, 1), F(1, 1)], (2, 1)),
+        (&[P(1, 0), F(1, 1)], (2, 1)),
+        (&[F(1, 0), P(1, 1)], (2, 1)),
+        (&[F(1, 0), P(2, 0)], (2, 1)),
+        (&[P(1, 0), F(1, 1), P(2, 1)], (2, 2)),
+        (&[P(0, 1), F(1, 1), P(2, 1)], (2, 2)),
+        (&[F(1, 0), F(2, 0)], (3, 0)),
+        (&[F(1, 0), P(2, 0), F(2, 1)], (3, 1)),
+        (&[F(1, 0), P(1, 1), F(2, 1)], (3, 1)),
+    ]
+};
+
+// TODO: optimize this shit
+pub fn has_los(g: &mut Game, pos1: Position, pos2: Position) -> bool {
+    let mappings: &[fn((i32, i32)) -> (i32, i32)] = &[
+        |(x, y)| (x, y),
+        |(x, y)| (x, -y),
+        |(x, y)| (-x, y),
+        |(x, y)| (-x, -y),
+        |(x, y)| (y, x),
+        |(x, y)| (y, -x),
+        |(x, y)| (-y, x),
+        |(x, y)| (-y, -x),
+    ];
+
+    use RulePt::*;
+    for mapping in mappings {
+        let to_pos = |pt| {
+            let (dx, dy) = mapping(pt);
+            Position { x: pos1.x + dx, y: pos1.y + dy }
+        };
+        for &(ray, pt) in FOV_RULES {
+            if pos2 == to_pos(pt) && ray.iter().all(|pt| match pt {
+                &F(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() == Obstruction::None,
+                &P(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() != Obstruction::Full,
+            }) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
 pub fn update_view(g: &mut Game) {
     for v in g.view.values_mut() {
         if let &mut TileView::Visible { object, tile, .. } = v {
@@ -57,32 +112,14 @@ pub fn update_view(g: &mut Game) {
         |(x, y)| (-y, x),
         |(x, y)| (-y, -x),
     ];
-    enum RulePt {
-        F(i32, i32),
-        P(i32, i32),
-    }
-    use RulePt::*;
-    let fov_rules: &[(&[_], _)] = &[
-        (&[], (1, 0)),
-        (&[P(1, 0)], (1, 1)),
-        (&[F(1, 0)], (2, 0)),
-        (&[P(0, 1), F(1, 1)], (2, 1)),
-        (&[P(1, 0), F(1, 1)], (2, 1)),
-        (&[F(1, 0), P(1, 1)], (2, 1)),
-        (&[F(1, 0), P(2, 0)], (2, 1)),
-        (&[P(1, 0), F(1, 1), P(2, 1)], (2, 2)),
-        (&[P(0, 1), F(1, 1), P(2, 1)], (2, 2)),
-        (&[F(1, 0), F(2, 0)], (3, 0)),
-        (&[F(1, 0), P(2, 0), F(2, 1)], (3, 1)),
-        (&[F(1, 0), P(1, 1), F(2, 1)], (3, 1)),
-    ];
 
+    use RulePt::*;
     for mapping in mappings {
         let to_pos = |pt| {
             let (dx, dy) = mapping(pt);
             Position { x: player_pos.x + dx, y: player_pos.y + dy }
         };
-        for &(ray, pt) in fov_rules {
+        for &(ray, pt) in FOV_RULES {
             if ray.iter().all(|pt| match pt {
                 &F(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() == Obstruction::None,
                 &P(dx, dy) => g.tile(to_pos((dx, dy))).obstruction() != Obstruction::Full,

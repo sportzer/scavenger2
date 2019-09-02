@@ -106,4 +106,8 @@ impl Position {
     pub fn adjacent_to(self, o: Position) -> bool {
         self != o && (self.x - o.x).abs() <= 1 && (self.y - o.y).abs() <= 1
     }
+
+    pub fn chebyshev_distance(self, o: Position) -> i32 {
+        i32::max((self.x - o.x).abs(), (self.y - o.y).abs())
+    }
 }

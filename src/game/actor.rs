@@ -1,6 +1,6 @@
 use rand::prelude::*;
 
-use super::{Action, Entity, EntityType, Game, TileView};
+use super::{Action, ActionError, Entity, EntityType, Game, TileView};
 use super::geometry::{Direction, Position};
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -14,6 +14,7 @@ pub enum ActorType {
     BigJelly,
     LittleJelly,
     Ghost,
+    Dragonfly,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -65,8 +66,48 @@ fn move_towards(g: &mut Game, e: Entity, pos: Position) {
     g.states.insert(e, ActorState::Wait);
 }
 
+fn knights_move(g: &mut Game, e: Entity, pos: Position) {
+    if let Some(&epos) = g.positions.get(&e) {
+        let mut dests = {
+            use Direction::*;
+            [
+                epos.step(North).step(NorthWest),
+                epos.step(North).step(NorthEast),
+                epos.step(East).step(NorthEast),
+                epos.step(East).step(SouthEast),
+                epos.step(South).step(SouthEast),
+                epos.step(South).step(SouthWest),
+                epos.step(West).step(SouthWest),
+                epos.step(West).step(NorthWest),
+            ]
+        };
+        let dist = epos.chebyshev_distance(pos);
+        dests.shuffle(&mut g.rng);
+        // TODO: sort by distance rather than partitioning?
+        dests.sort_by_key(|p| p.chebyshev_distance(pos) > dist);
+        for &dest in &dests {
+            if !super::fov::has_los(g, epos, dest) {
+                continue;
+            }
+            match g.set_actor_position(e, dest) {
+                Ok(_) => { return; }
+                Err(ActionError::Occupied) => {
+                    if Some(dest) == g.player_position() {
+                        if let Ok(_) = g.kill_actor(super::PLAYER) {
+                            let _ = g.set_actor_position(e, dest);
+                            return;
+                        }
+                    }
+                }
+                Err(_) => {}
+            }
+        }
+    }
+    g.states.insert(e, ActorState::Wait);
+}
+
 pub(super) fn take_actions(g: &mut Game) {
-    // TODO
+    // TODO: randomize order
     for (e, state) in g.states.clone() {
         let actor_type = match g.types.get(&e).cloned() {
             Some(EntityType::Actor(a)) => a,
@@ -79,6 +120,9 @@ pub(super) fn take_actions(g: &mut Game) {
                 ActorType::Wolf => {
                     move_towards(g, e, pos);
                     move_towards(g, e, pos);
+                }
+                ActorType::Dragonfly => {
+                    knights_move(g, e, pos);
                 }
                 _ => {
                     move_towards(g, e, pos);

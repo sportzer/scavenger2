@@ -69,6 +69,7 @@ impl GameMap {
                 ActorType::BigJelly => ("J", black_bg(Color::Light(BaseColor::Magenta))),
                 ActorType::LittleJelly => ("j", black_bg(Color::Light(BaseColor::Magenta))),
                 ActorType::Ghost => ("g", black_bg(Color::Dark(BaseColor::White))),
+                ActorType::Dragonfly => ("d", black_bg(Color::Light(BaseColor::Cyan))),
             };
         }
         let (object, tile, vis) = match view {
@@ -90,9 +91,10 @@ impl GameMap {
             return match object {
                 // TODO: handle Actor some other way?
                 EntityType::Actor(_) => ("!", corpse(BaseColor::Red)),
-                // TODO: special colors for other corpse types
                 EntityType::Corpse(ActorType::BigJelly) | EntityType::Corpse(ActorType::LittleJelly) =>
                     ("%", corpse(BaseColor::Magenta)),
+                EntityType::Corpse(ActorType::Beetle) | EntityType::Corpse(ActorType::Dragonfly) =>
+                    ("%", corpse(BaseColor::Cyan)),
                 EntityType::Corpse(_) => ("%", corpse(BaseColor::Red)),
             };
         }
