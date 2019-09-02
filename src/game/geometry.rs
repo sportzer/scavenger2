@@ -102,4 +102,8 @@ impl Position {
             Direction::NorthWest => Position { x: self.x - 1, y: self.y - 1 },
         }
     }
+
+    pub fn adjacent_to(self, o: Position) -> bool {
+        self != o && (self.x - o.x).abs() <= 1 && (self.y - o.y).abs() <= 1
+    }
 }

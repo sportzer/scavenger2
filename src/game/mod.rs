@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::num::NonZeroU64;
 
 use rand::prelude::*;
@@ -122,6 +122,8 @@ pub struct Game {
     actors: HashMap<Position, Entity>,
     objects: HashMap<Position, Vec<Entity>>,
 
+    visible_ghosts: HashSet<Entity>,
+
     rng: StdRng,
     prev_entity: Entity,
     view: HashMap<Position, TileView>,
@@ -140,6 +142,7 @@ impl Game {
             positions: HashMap::new(),
             actors: HashMap::new(),
             objects: HashMap::new(),
+            visible_ghosts: HashSet::new(),
             rng: rng,
             prev_entity: PLAYER,
             view: HashMap::new(),
@@ -189,6 +192,7 @@ impl Game {
         match action {
             Action::Wait => {}
             Action::Move(dir) => {
+                // TODO: ghost should maybe be able to move through walls or something
                 if actor_type == ActorType::Crab && !dir.is_orthogonal() {
                     return Err(ActionError::IllegalDiagonal);
                 }
@@ -266,7 +270,9 @@ impl Game {
         self.types.insert(e, EntityType::Corpse(actor_type));
         if let Some(&pos) = self.positions.get(&e) {
             self.actors.remove(&pos);
-            self.objects.entry(pos).or_insert_with(Vec::new).push(e);
+            if actor_type != ActorType::Ghost {
+                self.objects.entry(pos).or_insert_with(Vec::new).push(e);
+            }
             if actor_type == ActorType::BigJelly {
                 for &dir in &geometry::ORTHOGONAL_DIRECTIONS {
                     let _ = self.spawn_actor(ActorType::LittleJelly, pos.step(dir));

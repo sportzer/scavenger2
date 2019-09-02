@@ -13,6 +13,7 @@ pub enum ActorType {
     Beetle,
     BigJelly,
     LittleJelly,
+    Ghost,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

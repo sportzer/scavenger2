@@ -68,6 +68,7 @@ impl GameMap {
                 ActorType::Beetle => ("b", black_bg(Color::Light(BaseColor::Cyan))),
                 ActorType::BigJelly => ("J", black_bg(Color::Light(BaseColor::Magenta))),
                 ActorType::LittleJelly => ("j", black_bg(Color::Light(BaseColor::Magenta))),
+                ActorType::Ghost => ("g", black_bg(Color::Dark(BaseColor::White))),
             };
         }
         let (object, tile, vis) = match view {

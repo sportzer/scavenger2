@@ -27,6 +27,8 @@ pub fn generate_basin(g: &mut Game) {
                             let _ = g.spawn_actor(ActorType::BigJelly, pos);
                         } else if g.rng.gen_ratio(1, 100) {
                             let _ = g.spawn_actor(ActorType::LittleJelly, pos);
+                        } else if g.rng.gen_ratio(1, 50) {
+                            let _ = g.spawn_actor(ActorType::Ghost, pos);
                         }
                     }
                 } else {

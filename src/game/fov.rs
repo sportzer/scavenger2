@@ -1,5 +1,6 @@
 use super::{EntityType, Game, Obstruction, Tile, TileView};
 use super::geometry::{ORTHOGONAL_DIRECTIONS, Position};
+use super::actor::{ActorState, ActorType};
 
 pub fn update_view(g: &mut Game) {
     for v in g.view.values_mut() {
@@ -8,10 +9,34 @@ pub fn update_view(g: &mut Game) {
         }
     }
 
+    let player_pos = match g.player_position() {
+        Some(pos) => pos,
+        None => { return; }
+    };
+
     let mark_visible = |g: &mut Game, pos| {
         // TODO: what if entity type not actor?
-        let actor_type = g.actors.get(&pos).and_then(|e| g.types.get(e).cloned())
-            .and_then(|t| if let EntityType::Actor(a) = t { Some(a) } else { None });
+        // TODO: simplify this a bunch please
+        // TODO: ghost should maybe go invisible again once no longer in FOV
+        let actor_type = if let Some(&actor) = g.actors.get(&pos) {
+            if let Some(&EntityType::Actor(actor_type)) = g.types.get(&actor) {
+                if actor_type == ActorType::Ghost {
+                    if g.visible_ghosts.contains(&actor) {
+                        Some(ActorType::Ghost)
+                    } else {
+                        if pos.adjacent_to(player_pos) {
+                            g.states.insert(actor, ActorState::Wait);
+                            g.visible_ghosts.insert(actor);
+                            Some(ActorType::Ghost)
+                        } else {
+                            None
+                        }
+                    }
+                } else {
+                    Some(actor_type)
+                }
+            } else { None }
+        } else { None };
         g.view.insert(pos, TileView::Visible {
             actor: actor_type,
             object: g.objects.get(&pos).and_then(|v| v.last())
@@ -20,10 +45,6 @@ pub fn update_view(g: &mut Game) {
         });
     };
 
-    let player_pos = match g.player_position() {
-        Some(pos) => pos,
-        None => { return; }
-    };
     mark_visible(g, player_pos);
 
     let mappings: &[fn((i32, i32)) -> (i32, i32)] = &[
