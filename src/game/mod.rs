@@ -24,16 +24,6 @@ const PLAYER: Entity = Entity(unsafe { NonZeroU64::new_unchecked(1) });
 pub enum EntityType {
     Actor(ActorType),
     Corpse(ActorType),
-    // TODO: items
-    // Scroll,
-    // Herb,
-    // Sword,
-    // Bow,
-    // Arrow,
-    // Rock,
-    // Diamond,
-    // TODO: cosmetic
-    // Skeleton,
 }
 
 #[derive(Debug, Copy, Clone, Hash, Eq, PartialEq)]
@@ -41,11 +31,6 @@ pub enum Tile {
     Wall,
     Tree,
     Ground,
-    // TODO:
-    // ShallowWater,
-    // DeepWater,
-    // ShortGrass,
-    // LongGrass,
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -111,17 +96,12 @@ pub enum Action {
     Move(Direction),
     Attack(Direction),
     MoveAttack(Direction),
-    // TODO:
-    // EatHerb
-    // ReadScroll
-    // ThrowRock(Position),
-    // FireBow(Direction),
 }
 
 // Include info on what exactly went wrong in error?
+// Per action type errors?
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ActionError {
-    Unspecified,
     IllegalDiagonal,
     Impassible,
     Occupied,
@@ -209,6 +189,9 @@ impl Game {
         match action {
             Action::Wait => {}
             Action::Move(dir) => {
+                if actor_type == ActorType::Crab && !dir.is_orthogonal() {
+                    return Err(ActionError::IllegalDiagonal);
+                }
                 if let Some((a, b)) = match dir {
                     Direction::NorthEast => Some((Direction::North, Direction::East)),
                     Direction::SouthEast => Some((Direction::South, Direction::East)),
@@ -228,12 +211,31 @@ impl Game {
                 let target_pos = pos.step(dir);
                 if let Some(&target) = self.actors.get(&target_pos) {
                     if let Some(&EntityType::Actor(target_type)) = self.types.get(&target) {
+                        // TODO: not being able to attack crabs diagonally could cause them get
+                        // stuck on terrain and be unkillable, but I do like the idea of making them
+                        // a bit harder to kill to compensate for being less mobile
+                        if (actor_type == ActorType::Crab || target_type == ActorType::Crab) && !dir.is_orthogonal() {
+                            return Err(ActionError::IllegalDiagonal);
+                        }
                         if actor_type == ActorType::Player || target_type == ActorType::Player {
-                            // TODO: real damage and death handling
-                            self.actors.remove(&target_pos);
-                            self.states.remove(&target);
-                            self.objects.entry(target_pos).or_insert_with(Vec::new).push(target);
-                            self.types.insert(target, EntityType::Corpse(target_type));
+                            // TODO: chain push multiple beetles?
+                            if target_type == ActorType::Beetle {
+                                match self.take_action(target, Action::Move(dir)) {
+                                    Ok(_) => {
+                                        self.states.insert(target, ActorState::Wait);
+                                        return Ok(());
+                                    }
+                                    Err(ActionError::Occupied) => {
+                                        if let Some(&victim) = self.actors.get(&target_pos.step(dir)) {
+                                            // TODO: use force attack action so know what tried to kill victim?
+                                            let _ = self.kill_actor(victim);
+                                            let _ = self.take_action(target, Action::Move(dir));
+                                        }
+                                    }
+                                    Err(_) => {}
+                                }
+                            }
+                            self.kill_actor(target)?;
                             return Ok(());
                         }
                     }
@@ -250,6 +252,26 @@ impl Game {
             }
         };
         Ok(())
+    }
+
+    fn kill_actor(&mut self, e: Entity) -> ActionResult {
+        // TODO: some type system level stuff to avoid having to revalidate this stuff
+        let actor_type = match self.types.get(&e) {
+            Some(&EntityType::Actor(a)) => a,
+            _ => { return Err(ActionError::InvalidActor); }
+        };
+        self.states.remove(&e);
+        self.types.insert(e, EntityType::Corpse(actor_type));
+        if let Some(&pos) = self.positions.get(&e) {
+            self.actors.remove(&pos);
+            self.objects.entry(pos).or_insert_with(Vec::new).push(e);
+            if actor_type == ActorType::BigJelly {
+                for &dir in &geometry::ORTHOGONAL_DIRECTIONS {
+                    let _ = self.spawn_actor(ActorType::LittleJelly, pos.step(dir));
+                }
+            }
+        }
+        return Ok(());
     }
 
     fn new_entity(&mut self, entity_type: EntityType) -> Entity {
@@ -284,5 +306,15 @@ impl Game {
         }
         self.actors.insert(pos, e);
         Ok(old_pos)
+    }
+
+    fn spawn_actor(&mut self, t: ActorType, pos: Position) -> ActionResult<Entity> {
+        let e = self.new_entity(EntityType::Actor(t));
+        // TODO: don't leak entity on invalid placement
+        self.set_actor_position(e, pos)?;
+        if t != ActorType::Player {
+            self.states.insert(e, ActorState::Wait);
+        }
+        Ok(e)
     }
 }

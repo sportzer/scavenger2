@@ -64,6 +64,10 @@ impl GameMap {
                 ActorType::Player => ("@", black_bg(Color::Light(BaseColor::White))),
                 ActorType::Rat => ("r", black_bg(Color::Light(BaseColor::White))),
                 ActorType::Wolf => ("w", black_bg(Color::Light(BaseColor::White))),
+                ActorType::Crab => ("c", black_bg(Color::Light(BaseColor::Red))),
+                ActorType::Beetle => ("b", black_bg(Color::Light(BaseColor::Cyan))),
+                ActorType::BigJelly => ("J", black_bg(Color::Light(BaseColor::Magenta))),
+                ActorType::LittleJelly => ("j", black_bg(Color::Light(BaseColor::Magenta))),
             };
         }
         let (object, tile, vis) = match view {
@@ -77,6 +81,7 @@ impl GameMap {
             }
         };
         if let Some(object) = object {
+            // TODO: different colored corpses
             let color = if vis {
                 Color::Light(BaseColor::Red)
             } else {
