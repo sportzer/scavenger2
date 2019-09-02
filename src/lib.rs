@@ -81,16 +81,18 @@ impl GameMap {
             }
         };
         if let Some(object) = object {
-            // TODO: different colored corpses
-            let color = if vis {
-                Color::Light(BaseColor::Red)
+            let corpse = |c| black_bg(if vis {
+                Color::Light(c)
             } else {
-                Color::Dark(BaseColor::Red)
-            };
+                Color::Dark(c)
+            });
             return match object {
                 // TODO: handle Actor some other way?
-                EntityType::Actor(_) => ("!", black_bg(color)),
-                EntityType::Corpse(_) => ("%", black_bg(color)),
+                EntityType::Actor(_) => ("!", corpse(BaseColor::Red)),
+                // TODO: special colors for other corpse types
+                EntityType::Corpse(ActorType::BigJelly) | EntityType::Corpse(ActorType::LittleJelly) =>
+                    ("%", corpse(BaseColor::Magenta)),
+                EntityType::Corpse(_) => ("%", corpse(BaseColor::Red)),
             };
         }
         let (ch, color) = match tile {
