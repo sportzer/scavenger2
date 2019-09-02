@@ -214,6 +214,8 @@ impl Game {
                         // TODO: not being able to attack crabs diagonally could cause them get
                         // stuck on terrain and be unkillable, but I do like the idea of making them
                         // a bit harder to kill to compensate for being less mobile
+                        // I could do beetle style knockback when hitting them diagonally, but I'm
+                        // not sure if that's what I really want
                         if (actor_type == ActorType::Crab || target_type == ActorType::Crab) && !dir.is_orthogonal() {
                             return Err(ActionError::IllegalDiagonal);
                         }
