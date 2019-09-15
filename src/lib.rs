@@ -86,7 +86,7 @@ impl GameMap {
             let corpse = |c| black_bg(if vis {
                 Color::Light(c)
             } else {
-                Color::Dark(c)
+                Color::Light(BaseColor::Black)
             });
             return match object {
                 // TODO: handle Actor some other way?
