@@ -6,10 +6,10 @@ use super::actor::ActorType;
 
 pub fn generate_basin(g: &mut Game) {
     // TODO: real map gen
-    for x in -20..=20 {
-        for y in -20..=20 {
+    for x in -17..=17 {
+        for y in -17..=17 {
             let sq = (x*x + y*y) as u32;
-            if sq <= 25 || sq < 20*20 && !g.rng.gen_ratio(sq, 20*20) {
+            if sq <= 25 || sq < 18*18 && !g.rng.gen_ratio(sq, 20*20) {
                 let pos = Position { x, y };
                 if sq <= 2 || g.rng.gen_ratio(14, 15) {
                     g.tiles.insert(pos, Tile::Ground);
