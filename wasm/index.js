@@ -24,24 +24,9 @@ const update = () => {
     }
 };
 
-document.addEventListener("keydown", e => {
-    if (game == null) { return; }
-    game.push_keydown_event(e.keyCode, e.ctrlKey, e.altKey, e.shiftKey);
-    // TODO: figure out something which is less of a hack
-    // (only block arrows here and space in keypress handler?)
-    if(e.key.length != 1) {
-        e.preventDefault();
-    }
-    requestAnimationFrame(update);
-});
-document.addEventListener("keypress", e => {
-    if (game == null) { return; }
-    game.push_keypress_event(e.charCode, e.ctrlKey, e.altKey);
-    e.preventDefault();
-    requestAnimationFrame(update);
-});
-
 const initDisplay = () => {
+    window.focus()
+
     display = new ROT.Display();
     display.setOptions({
         width: WIDTH,
@@ -52,6 +37,23 @@ const initDisplay = () => {
     });
     document.body.appendChild(display.getContainer());
     document.body.focus();
+
+    document.addEventListener("keydown", e => {
+        if (game == null) { return; }
+        game.push_keydown_event(e.keyCode, e.ctrlKey, e.altKey, e.shiftKey);
+        // TODO: figure out something which is less of a hack
+        // (only block arrows here and space in keypress handler?)
+        if(e.key.length != 1) {
+            e.preventDefault();
+        }
+        requestAnimationFrame(update);
+    });
+    document.addEventListener("keypress", e => {
+        if (game == null) { return; }
+        game.push_keypress_event(e.charCode, e.ctrlKey, e.altKey);
+        e.preventDefault();
+        requestAnimationFrame(update);
+    });
 
     display.getContainer().addEventListener("mousedown", e => {
         if (game == null) { return; }
@@ -84,7 +86,5 @@ wasm_bindgen('./scavenger_wasm_bg.wasm').then(() => {
     // console.log("game seed: " + seed);
     game = Game.new(seed);
     game.set_size(WIDTH, HEIGHT);
-
-    document.body.focus();
     requestAnimationFrame(update);
 });
