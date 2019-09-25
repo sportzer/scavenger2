@@ -223,6 +223,9 @@ impl Game {
     }
 
     pub fn run(&mut self) {
+        // TODO: why???!?
+        self.push_event(Event::Refresh);
+        self.ui.run();
         self.push_event(Event::Refresh);
         self.ui.run();
     }
