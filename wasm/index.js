@@ -7,7 +7,6 @@ let display = null;
 let game = null;
 
 const update = () => {
-    console.log(document.activeElement);
     if (game == null) { return; }
     game.run();
 
